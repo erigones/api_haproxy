@@ -1,2 +1,6 @@
-__author__ = 'Dusan Matejka'
-__email__ = 'matejkadusan32@gmail.com'
+from django.conf.urls import url
+import views
+
+urlpatterns = [
+    url(r'^test/$', views.TestView.as_view()),
+]
