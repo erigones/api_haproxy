@@ -33,9 +33,11 @@ class Base64JsonField(models.TextField):
             if value.startswith('base64:'):
                 value = value.split(':')[1]
                 return json.loads(base64.decodestring(value))
-            # TODO elif for situation where value is dict
-            else:
-                return value
+        elif value is not None and isinstance(value, dict):
+            value = json.dumps(value)
+            return value
+
+        return value
 
 
 class HaProxyConfigModel(models.Model):
