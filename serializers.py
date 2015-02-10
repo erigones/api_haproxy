@@ -1,2 +1,9 @@
-__author__ = 'Dusan Matejka'
-__email__ = 'matejkadusan32@gmail.com'
+from rest_framework.serializers import ModelSerializer
+from models import HaProxyConfigModel
+
+
+class HaProxyConfigModelSerializer(ModelSerializer):
+
+    class Meta:
+        model = HaProxyConfigModel
+        fields = ('checksum', 'section', 'meta', 'configuration')
