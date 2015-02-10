@@ -25,5 +25,5 @@ class HaProxyTestView(APIView):
         if not section or not configuration:
             raise InvalidRequestException()
 
-        return Response
+        return Response({'status': 'ok'})
 
