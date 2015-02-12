@@ -8,7 +8,7 @@ class HaProxyConfigModel(models.Model):
     """
     Model storing serialized configuration of HaProxy divided per section in Base64 format. E.g. frontend, backend.
     """
-    checksum = models.CharField(max_length=32)
+    checksum = models.CharField(max_length=32, unique=True)
     section = models.CharField(max_length=100)
     section_name = models.CharField(max_length=100)
     meta = Base64JsonField()
@@ -31,6 +31,6 @@ class HaProxyConfigModel(models.Model):
         :return: list of metadata for entry
         """
         meta = {
-            'create_time': timezone.now(),
+            'create_time': str(timezone.now()),
         }
         return meta
