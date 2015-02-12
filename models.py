@@ -6,6 +6,7 @@ from fields import Base64JsonField
 class HaProxyConfigModel(models.Model):
     checksum = models.CharField(max_length=32)
     section = models.CharField(max_length=100)
+    section_name = models.CharField(max_length=100)
     meta = Base64JsonField()
     configuration = Base64JsonField()
 
