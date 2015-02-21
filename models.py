@@ -8,11 +8,13 @@ class HaProxyConfigModel(models.Model):
     """
     Model storing serialized configuration of HaProxy divided per section in Base64 format. E.g. frontend, backend.
     """
+    db_table = 'haproxy_config'
     checksum = models.CharField(max_length=32, unique=True)
     section = models.CharField(max_length=100)
-    section_name = models.CharField(max_length=100)
+    section_name = models.CharField(max_length=100, null=True)
     meta = Base64JsonField()
     configuration = Base64JsonField()
+    in_use = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         """
