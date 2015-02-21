@@ -22,7 +22,7 @@ class HaProxyConfigModel(models.Model):
         like writes or check of integrity during saves.
         """
         checksum = md5()
-        checksum.update(self.configuration)
+        checksum.update(self.section + (self.section_name or '') + self.configuration)
         self.checksum = checksum.hexdigest()
         self.meta = self.generate_meta()
         super(HaProxyConfigModel, self).save(*args, **kwargs)

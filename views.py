@@ -25,7 +25,8 @@ class HaProxyTestView(APIView):
         section_name = request.DATA.get('section_name', None)
         configuration = request.DATA.get('configuration', None)
 
-        if not all([x is not None for x in [section, section_name, configuration]]):
+        named_sections = ['frontend', 'backend', 'listen']
+        if section in named_sections and not all([x is not None for x in [section, section_name, configuration]]):
             raise InvalidRequestException()
         else:
             try:
