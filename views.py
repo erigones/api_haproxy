@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from models import HaProxyConfigModel
 from serializers import HaProxyConfigModelSerializer
 from rest_framework.response import Response
+from rest_framework.status import HTTP_201_CREATED
 from api_core.exceptions import InvalidRequestException, DoesNotExistException, DuplicateEntryException
 from django.db import IntegrityError
 import json
@@ -55,5 +56,5 @@ class HaProxyConfigBuildView(APIView):
             except ValueError:
                 raise InvalidRequestException()
 
-        return Response({'status': 'ok'})
+        return Response({'checksum': config.checksum}, status=HTTP_201_CREATED)
 
