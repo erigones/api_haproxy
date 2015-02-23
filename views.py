@@ -58,3 +58,14 @@ class HaProxyConfigBuildView(APIView):
 
         return Response({'checksum': config.checksum}, status=HTTP_201_CREATED)
 
+
+class HaProxyConfigGenerateView(APIView):
+
+    def get(self, request):
+        result = HaProxyConfigModel.objects.all()
+        result.query.group_by = ['section', 'section_name']
+        if result:
+            for res in result:
+                print res.checksum, res.section, res.section_name, res.configuration, res.meta
+
+        return Response()
