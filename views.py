@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED
 from api_core.exceptions import InvalidRequestException, DoesNotExistException, DuplicateEntryException
 from django.db import IntegrityError
+from operator import methodcaller
 import json
 
 
@@ -60,12 +61,17 @@ class HaProxyConfigBuildView(APIView):
 
 
 class HaProxyConfigGenerateView(APIView):
+    """
+    API view handling generation process of HaProxy configuration file.
+    """
 
     def get(self, request):
         result = HaProxyConfigModel.objects.all()
         result.query.group_by = ['section', 'section_name']
+
         if result:
+            result = sorted(result, key=methodcaller('get_section_weight'))
             for res in result:
-                print res.checksum, res.section, res.section_name, res.configuration, res.meta
+                print res.section, res.section_name
 
         return Response()
