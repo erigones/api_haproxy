@@ -36,3 +36,15 @@ class HaProxyConfigModel(models.Model):
             'create_time': str(timezone.now()),
         }
         return meta
+
+    def get_section_weight(self):
+        """
+        Method returns weights of section for later sorting used when configuration file is being generated.
+        :return: weight of specific section
+        """
+        weights = {'global': 1, 'defaults': 3, 'frontend': 5, 'backend': 7, 'listen': 9}
+        if self.section in weights:
+            weight = weights.get(self.section, 0)
+            if self.section_name:
+                return weight + 1
+            return weight
