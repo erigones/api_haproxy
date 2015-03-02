@@ -6,6 +6,7 @@ from rest_framework.status import HTTP_201_CREATED
 from api_core.exceptions import InvalidRequestException, DoesNotExistException, DuplicateEntryException
 from django.db import IntegrityError
 from operator import methodcaller
+import settings
 import json
 
 
@@ -44,7 +45,7 @@ class HaProxyConfigBuildView(APIView):
         section_name = request.DATA.get('section_name', None)
         configuration = request.DATA.get('configuration', None)
 
-        named_sections = ['frontend', 'backend', 'listen']
+        named_sections = settings.HAPROXY_CONFIG_NAMED_SECTIONS
         if section in named_sections and not all([x is not None for x in [section, section_name, configuration]]):
             raise InvalidRequestException()
         else:
@@ -65,14 +66,20 @@ class HaProxyConfigGenerateView(APIView):
     API view handling generation process of HaProxy configuration file.
     """
 
-    def get(self, request):
+    def post(self, request):
+        """
+        Method responding to POST request creates new configuration, which is stored in file specified by
+        HAPROXY_CONFIG_PATH defined in settings file specific to api_haproxy.
+        :param request: request data
+        :return: rest_framework.response.Response containing serialized data
+        """
         result = HaProxyConfigModel.objects.all()
         result.query.group_by = ['section', 'section_name']
 
         if result:
             result = sorted(result, key=methodcaller('get_section_weight'))
             config = ""
-            with open('haproxy.cfg', 'w') as f:
+            with open(settings.HAPROXY_CONFIG_PATH, 'w') as f:
                 for res in result:
                     config += str(res.section) + " " + (None or "") + "\n"
                     for key, value in json.loads(res.configuration).iteritems():
