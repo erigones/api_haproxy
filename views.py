@@ -71,16 +71,13 @@ class HaProxyConfigGenerateView(APIView):
 
         if result:
             result = sorted(result, key=methodcaller('get_section_weight'))
+            config = ""
             with open('haproxy.cfg', 'w') as f:
                 for res in result:
-                    if res.section_name is None:
-                        res.section_name = ""
-                    section_header = str(res.section) + " " + res.section_name + "\n"
-                    f.write(section_header)
+                    config += str(res.section) + " " + (None or "") + "\n"
                     for key, value in json.loads(res.configuration).iteritems():
-                        if value is None:
-                            value = ""
-                        section_directive = "\t" + str(key) + " " + value + "\n"
-                        f.write(section_directive)
-                    f.write("\n")
+                        config += "    " + str(key) + " " + (value or "") + "\n"
+                    config += "\n"
+                f.write(config)
+
         return Response()
