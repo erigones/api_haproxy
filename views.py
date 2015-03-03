@@ -87,4 +87,4 @@ class HaProxyConfigGenerateView(APIView):
                     config += "\n"
                 f.write(config)
 
-        return Response()
+        return Response({'created': True}, status=HTTP_201_CREATED)
