@@ -88,3 +88,12 @@ class HaProxyConfigGenerateView(APIView):
                 f.write(config)
 
         return Response({'created': True}, status=HTTP_201_CREATED)
+
+
+class HaProxyConfigValidationView(APIView):
+    """
+    API view interacting with haproxy cli command to validate generated haproxy configuration file.
+    """
+
+    def get(self, request):
+        return Response()
