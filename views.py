@@ -81,9 +81,9 @@ class HaProxyConfigGenerateView(APIView):
             config = ""
             with open(settings.HAPROXY_CONFIG_PATH, 'w') as f:
                 for res in result:
-                    config += str(res.section) + " " + (res.section_name or "") + "\n"
+                    config += "{0} {1}\n".format(str(res.section), (res.section_name or ""))
                     for key, value in json.loads(res.configuration).iteritems():
-                        config += "    " + str(key) + " " + (value or "") + "\n"
+                        config += "    {0} {1}\n".format(str(key), (value or ""))
                     config += "\n"
                 f.write(config)
 
