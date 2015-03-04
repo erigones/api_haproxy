@@ -3,9 +3,10 @@ from models import HaProxyConfigModel
 from serializers import HaProxyConfigModelSerializer
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED
-from api_core.exceptions import InvalidRequestException, DoesNotExistException, DuplicateEntryException
+from api_core import exceptions as core_exceptions
 from django.db import IntegrityError
 from operator import methodcaller
+import subprocess
 import settings
 import json
 
@@ -28,7 +29,7 @@ class HaProxyConfigBuildView(APIView):
                 config = HaProxyConfigModel.objects.get(checksum=checksum)
                 serializer = HaProxyConfigModelSerializer(config)
             except HaProxyConfigModel.DoesNotExist:
-                raise DoesNotExistException()
+                raise core_exceptions.DoesNotExistException()
         else:
             config = HaProxyConfigModel.objects.all()
             serializer = HaProxyConfigModelSerializer(config, many=True)
@@ -47,16 +48,16 @@ class HaProxyConfigBuildView(APIView):
 
         named_sections = settings.HAPROXY_CONFIG_NAMED_SECTIONS
         if section in named_sections and not all([x is not None for x in [section, section_name, configuration]]):
-            raise InvalidRequestException()
+            raise core_exceptions.InvalidRequestException()
         else:
             try:
                 json.loads(configuration)  # Should raise ValueError if configuration data are invalid
                 config = HaProxyConfigModel(section=section, section_name=section_name, configuration=configuration)
                 config.save()
             except IntegrityError:
-                raise DuplicateEntryException()
+                raise core_exceptions.DuplicateEntryException()
             except ValueError:
-                raise InvalidRequestException()
+                raise core_exceptions.InvalidRequestException()
 
         return Response({'checksum': config.checksum}, status=HTTP_201_CREATED)
 
