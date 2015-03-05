@@ -80,7 +80,7 @@ class HaProxyConfigGenerateView(APIView):
         if result:
             result = sorted(result, key=methodcaller('get_section_weight'))
             config = ""
-            with open(settings.HAPROXY_CONFIG_PATH, 'w') as f:
+            with open(settings.HAPROXY_CONFIG_DEV_PATH, 'w') as f:
                 for res in result:
                     config += "{0} {1}\n".format(str(res.section), (res.section_name or ""))
                     for key, value in json.loads(res.configuration).iteritems():
@@ -108,10 +108,10 @@ class HaProxyConfigValidationView(APIView):
         haproxy_validation_cmd = getattr(settings, 'HAPROXY_VALIDATION_CMD', None)
 
         if not haproxy_validation_cmd:
-            haproxy_validation_cmd = '{0} -f {1} -c'.format(haproxy_executable, settings.HAPROXY_CONFIG_PATH)
+            haproxy_validation_cmd = '{0} -f {1} -c'.format(haproxy_executable, settings.HAPROXY_CONFIG_DEV_PATH)
 
+        # Exceptions raised in following command are handled in self.handle_exception method
         validate = subprocess.check_output(haproxy_validation_cmd.split(), stderr=subprocess.STDOUT)
-        print validate
 
         return Response()
 
