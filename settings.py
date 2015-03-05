@@ -19,4 +19,4 @@ HAPROXY_CONFIG_NAMED_SECTIONS = ['frontend', 'backend', 'listen']
 HAPROXY_EXECUTABLE = 'haproxy'
 
 # Default: haproxy -f PATH_TO_CONFIG -c
-HAPROXY_VALIDATION_CMD = '{0} -f {1} -c'.format((HAPROXY_EXECUTABLE or 'haproxy'), HAPROXY_CONFIG_PATH)
+HAPROXY_VALIDATION_CMD = '{0} -f {1} -c'.format((HAPROXY_EXECUTABLE or 'haproxy'), HAPROXY_CONFIG_DEV_PATH)
