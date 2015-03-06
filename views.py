@@ -6,6 +6,7 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_500_INTERNAL_SERVER_ERR
 from api_core import exceptions as core_exceptions
 from django.db import IntegrityError
 from operator import methodcaller
+from helpers import parse_haproxy_configtest_output
 import subprocess
 import settings
 import json
@@ -55,6 +56,7 @@ class HaProxyConfigBuildView(APIView):
                 config = HaProxyConfigModel(section=section, section_name=section_name, configuration=configuration)
                 config.save()
             except IntegrityError:
+                # TODO: update time on posted configuration section instead
                 raise core_exceptions.DuplicateEntryException()
             except ValueError:
                 raise core_exceptions.InvalidRequestException()
@@ -112,9 +114,14 @@ class HaProxyConfigValidationView(APIView):
 
         try:
             validate = subprocess.check_output(haproxy_validation_cmd.split(), stderr=subprocess.STDOUT)
+        # Exception is caught when an executed command returns a non zero code
         except subprocess.CalledProcessError as e:
-            data = {'return code': e.returncode, 'detail': e.output}
+            data = {
+                'return code': e.returncode,
+                'detail': parse_haproxy_configtest_output(e.output)
+            }
             return Response(data, status=HTTP_500_INTERNAL_SERVER_ERROR)
+        # Exception is caught when no executable is found
         except OSError as e:
             data = {
                 'return code': e.errno,
@@ -122,4 +129,5 @@ class HaProxyConfigValidationView(APIView):
             }
             return Response(data, status=HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response()
+        validate_output = parse_haproxy_configtest_output(validate)
+        return Response({'return code': 0, 'detail': validate_output})

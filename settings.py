@@ -10,6 +10,13 @@ HAPROXY_CONFIG_DEV_PATH = settings.BASE_DIR + '/haproxy.cfg'
 # Sections in configuration file, which must be named
 HAPROXY_CONFIG_NAMED_SECTIONS = ['frontend', 'backend', 'listen']
 
+# Strings to be ignored from haproxy command outputs
+HAPROXY_BLACKLISTED_OUTPUT = [
+    'Fatal errors found in configuration.',
+    'Error(s) found in configuration file',
+    'Configuration file is valid'
+]
+
 ## Commands used to validate HaProxy configuration
 # Specifying this commands introduces a SECURITY HAZARD. Commands will be executed as they are without further control
 # and their output will be harvested for later processing. Use carefully or delete/comment these variables. In the
