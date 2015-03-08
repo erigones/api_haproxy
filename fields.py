@@ -31,7 +31,8 @@ class Base64JsonField(models.TextField):
             value = str(value)
             if value.startswith('base64:'):
                 value = value.split(':')[1]
-                return json.loads(base64.decodestring(value))
+                prepared_data = json.loads(base64.decodestring(value))
+                return json.loads(prepared_data)
         elif value is not None and isinstance(value, dict):
             value = json.dumps(value)
             return value
