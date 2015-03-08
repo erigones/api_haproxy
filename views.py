@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_500_INTERNAL_SERVER_ERROR
 from api_core import exceptions as core_exceptions
 from django.db import IntegrityError
+from django.utils import timezone
 from operator import methodcaller
 from helpers import parse_haproxy_configtest_output
 import subprocess
@@ -56,12 +57,31 @@ class HaProxyConfigBuildView(APIView):
                 config = HaProxyConfigModel(section=section, section_name=section_name, configuration=configuration)
                 config.save()
             except IntegrityError:
-                # TODO: update time on posted configuration section instead
                 raise core_exceptions.DuplicateEntryException()
             except ValueError:
                 raise core_exceptions.InvalidRequestException()
 
         return Response({'checksum': config.checksum}, status=HTTP_201_CREATED)
+
+    def put(self, request, checksum=None):
+        """
+        Method responding to PUT request modifies existing section, updates its create_time field and sets
+        modify_time to meta data of section. Updated method will be used in configuration generation.
+        :param request: request data
+        :return: rest_framework.response.Response containing serialized data
+        """
+        if not checksum:
+            raise core_exceptions.InvalidRequestException()
+
+        try:
+            config = HaProxyConfigModel.objects.get(checksum=checksum)
+            meta = json.loads(config.meta)
+            meta[unicode('modify_time')] = unicode(str(timezone.now()))
+            HaProxyConfigModel.objects.filter(checksum=checksum).update(meta=json.dumps(meta))
+        except HaProxyConfigModel.DoesNotExist:
+            raise core_exceptions.DoesNotExistException()
+
+        return Response({'checksum': config.checksum})
 
 
 class HaProxyConfigGenerateView(APIView):
