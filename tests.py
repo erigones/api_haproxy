@@ -67,3 +67,31 @@ class HaProxyConfigBuildTest(APITestCase):
     def test_get_all_sections_ok(self):
         response = self.client.get(self.base_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class HaProxyConfigTest(APITestCase):
+    base_url = '/{}/haproxy'.format(settings.API_VERSION_PREFIX)
+    sections_url = '{}/section/'.format(base_url)
+    generate_url = '{}/configuration/generate/'.format(base_url)
+    validate_url = '{}/configuration/validate/'.format(base_url)
+    posts = [
+        {'section': 'global', 'section_name': None, 'configuration': '{"user": "haproxy", "group": "haproxy"}'},
+        {'section': 'defaults', 'section_name': None, 'configuration': '{"log": "global", "mode": "http"}'},
+        {'section': 'frontend', 'section_name': 'nodes', 'configuration': '{"bind": "*:80", "default_backend": "bak"}'},
+        {'section': 'backend', 'section_name': 'bak', 'configuration': '{"balance": "roundrobin", "server": "1.1.1.1"}'}
+    ]
+
+    def test_config_generation_ok(self):
+        for section in self.posts:
+            self.client.post(self.sections_url, section)
+
+        response = self.client.post(self.generate_url)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_config_validation_executable_not_found(self):
+        with self.settings(HAPROXY_EXECUTABLE='non-existing'):
+            response = self.client.get(self.validate_url)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
