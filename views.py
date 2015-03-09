@@ -99,9 +99,12 @@ class HaProxyConfigGenerateView(APIView):
         result = HaProxyConfigModel.objects.all()
         result.query.group_by = ['section', 'section_name']
 
-        if result:
-            result = sorted(result, key=methodcaller('get_section_weight'))
-            config = ""
+        if not result:
+            raise core_exceptions.DoesNotExistException()
+
+        result = sorted(result, key=methodcaller('get_section_weight'))
+        config = ""
+        try:
             with open(settings.HAPROXY_CONFIG_DEV_PATH, 'w') as f:
                 for res in result:
                     config += "{0} {1}\n".format(str(res.section), (res.section_name or ""))
@@ -109,6 +112,12 @@ class HaProxyConfigGenerateView(APIView):
                         config += "    {0} {1}\n".format(str(key), (value or ""))
                     config += "\n"
                 f.write(config)
+        except IOError as e:
+            data = {
+                'error': e.strerror,
+                'file': settings.HAPROXY_CONFIG_DEV_PATH
+            }
+            raise core_exceptions.InternalServerErrorException(detail=data)
 
         return Response({'created': True}, status=HTTP_201_CREATED)
 
@@ -140,14 +149,14 @@ class HaProxyConfigValidationView(APIView):
                 'return code': e.returncode,
                 'detail': parse_haproxy_configtest_output(e.output)
             }
-            return Response(data, status=HTTP_500_INTERNAL_SERVER_ERROR)
+            raise core_exceptions.InternalServerErrorException(detail=data)
         # Exception is caught when no executable is found
         except OSError as e:
             data = {
                 'return code': e.errno,
                 'detail': str(e.strerror) + '. Make sure HAProxy is installed and a path to its binary is correct.'
             }
-            return Response(data, status=HTTP_500_INTERNAL_SERVER_ERROR)
+            raise core_exceptions.InternalServerErrorException(detail=data)
 
         validate_output = parse_haproxy_configtest_output(validate)
         return Response({'return code': 0, 'detail': validate_output})
