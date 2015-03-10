@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from models import HaProxyConfigModel
 from serializers import HaProxyConfigModelSerializer
 from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED, HTTP_500_INTERNAL_SERVER_ERROR
+from rest_framework.status import HTTP_201_CREATED
 from api_core import exceptions as core_exceptions
 from django.db import IntegrityError
 from django.utils import timezone
@@ -35,6 +35,7 @@ class HaProxyConfigBuildView(APIView):
         else:
             config = HaProxyConfigModel.objects.all()
             serializer = HaProxyConfigModelSerializer(config, many=True)
+
         return Response(serializer.data)
 
     def post(self, request):
@@ -88,6 +89,24 @@ class HaProxyConfigGenerateView(APIView):
     """
     API view handling generation process of HaProxy configuration file.
     """
+
+    def get(self, request):
+        """
+        Method responding to GET request fetches submitted section which will be generated to configuration file, thus
+        providing configuration preview.
+        :param request: request data
+        :return: rest_framework.response.Response containing serialized data
+        """
+        result = HaProxyConfigModel.objects.all()
+        result.query.group_by = ['section', 'section_name']
+
+        if not result:
+            raise core_exceptions.DoesNotExistException()
+
+        result = sorted(result, key=methodcaller('get_section_weight'))
+        serializer = HaProxyConfigModelSerializer(result, many=True)
+
+        return Response(serializer.data)
 
     def post(self, request):
         """
