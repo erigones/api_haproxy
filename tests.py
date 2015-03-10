@@ -88,6 +88,25 @@ class HaProxyConfigTest(APITestCase):
         response = self.client.post(self.generate_url)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+    def test_config_generation_fail(self):
+        response = self.client.post(self.generate_url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_config_preview_ok(self):
+        for section in self.posts:
+            self.client.post(self.sections_url, section)
+        response = self.client.get(self.generate_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_config_preview_fail(self):
+        response = self.client.get(self.generate_url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_config_generation_file_open_fail(self):
+        with self.settings(HAPROXY_CONFIG_DEV_PATH='/root/no/permissions/to/access'):
+            response = self.client.get(self.validate_url)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def test_config_validation_executable_not_found(self):
         with self.settings(HAPROXY_EXECUTABLE='non-existing'):
             response = self.client.get(self.validate_url)
