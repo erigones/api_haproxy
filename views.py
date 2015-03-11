@@ -8,6 +8,8 @@ from django.db import IntegrityError
 from django.utils import timezone
 from operator import methodcaller
 from helpers import parse_haproxy_configtest_output
+from os.path import isfile
+import shutil
 import subprocess
 import settings
 import json
@@ -105,7 +107,6 @@ class HaProxyConfigGenerateView(APIView):
 
         result = sorted(result, key=methodcaller('get_section_weight'))
         serializer = HaProxyConfigModelSerializer(result, many=True)
-
         return Response(serializer.data)
 
     def post(self, request):
@@ -148,17 +149,21 @@ class HaProxyConfigValidationView(APIView):
 
     def get(self, request):
         """
-        Method calling haproxy command to validate a generated configuration in a location provided by a
-        HAPROXY_CONFIG_PATH variable. Validation is performed using command specified in a HAPROXY_VALIDATION_CMD
+        Method calling haproxy command to validate a newly generated configuration in a location provided by a
+        HAPROXY_CONFIG_DEV_PATH variable. Validation is performed using command specified in a HAPROXY_VALIDATION_CMD
         variable. All these variables could be specified in settings.py file local to api_haproxy project.
         :param request: request data
         :return: rest_framework.response.Response containing serialized data
         """
         haproxy_executable = getattr(settings, 'HAPROXY_EXECUTABLE', None) or 'haproxy'
         haproxy_validation_cmd = getattr(settings, 'HAPROXY_VALIDATION_CMD', None)
+        dev_conf = settings.HAPROXY_CONFIG_DEV_PATH
 
         if not haproxy_validation_cmd:
-            haproxy_validation_cmd = '{0} -f {1} -c'.format(haproxy_executable, settings.HAPROXY_CONFIG_DEV_PATH)
+            haproxy_validation_cmd = '{0} -f {1} -c'.format(haproxy_executable, dev_conf)
+
+        if not isfile(dev_conf):
+            raise core_exceptions.DoesNotExistException(detail='{} is not a file.'.format(dev_conf))
 
         try:
             validate = subprocess.check_output(haproxy_validation_cmd.split(), stderr=subprocess.STDOUT)
@@ -179,3 +184,65 @@ class HaProxyConfigValidationView(APIView):
 
         validate_output = parse_haproxy_configtest_output(validate)
         return Response({'return code': 0, 'detail': validate_output})
+
+
+class HaProxyConfigDeployView(APIView):
+    """
+    API view interacting with haproxy cli command to deploy generated haproxy configuration file and reload haproxy.
+    """
+
+    def post(self, request):
+        """
+        Method replacing production configuration specified in HAPROXY_CONFIG_PATH with newly generated configuration
+        stored in location, which is specified in HAPROXY_CONFIG_DEV_PATH. Replaced configuration file is renamed to
+        same name, but ends with .bak. After configuration files are moved, method calls haproxy command and attempts to
+        reload configuration, when bash is present, otherwise restart will be performed. Use this view without previous
+        call of validation view at your own risk !
+        :param request: request data
+        :return: rest_framework.response.Response containing serialized data
+        """
+        haproxy_executable = getattr(settings, 'HAPROXY_EXECUTABLE', None) or 'haproxy'
+        haproxy_reload_cmd = getattr(settings, 'HAPROXY_RELOAD_CMD', None)
+        haproxy_restart_cmd = getattr(settings, 'HAPROXY_RESTART_CMD', None)
+        haproxy_dev_config = settings.HAPROXY_CONFIG_DEV_PATH
+        haproxy_prod_config = settings.HAPROXY_CONFIG_PATH
+
+        # Check if executables are specified in settings, otherwise provide defaults
+        if getattr(settings, 'BASH_PATH', None):
+            if not haproxy_reload_cmd:
+                haproxy_reload_cmd = '{0} -f {1} -p {2} -sf $(<{2})'.format(
+                    haproxy_executable, haproxy_prod_config, '/var/run/haproxy-pids.pid'
+                )
+            haproxy_reload = [settings.BASH_PATH, '-c', haproxy_reload_cmd]
+        else:
+            if not haproxy_restart_cmd:
+                haproxy_restart_cmd = '/etc/init.d/haproxy restart'
+            haproxy_reload = haproxy_restart_cmd.split()
+
+        # Check if configs are in place
+        if not isfile(haproxy_dev_config):
+            raise core_exceptions.DoesNotExistException(
+                detail='{} is not a file. Run call to generate it first.'.format(haproxy_dev_config)
+            )
+        if not isfile(haproxy_prod_config):
+            raise core_exceptions.DoesNotExistException(detail='{} is not a file.'.format(haproxy_prod_config))
+
+        try:
+            shutil.copy(haproxy_prod_config, haproxy_prod_config + '.bak')
+            shutil.copy(haproxy_dev_config, haproxy_prod_config)
+            deploy = subprocess.check_output(haproxy_reload, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            data = {
+                'return code': e.returncode,
+                'detail': parse_haproxy_configtest_output(e.output)
+            }
+            raise core_exceptions.InternalServerErrorException(detail=data)
+        except OSError as e:
+            data = {
+                'return code': e.errno,
+                'detail': str(e.strerror) + '. Make sure HAProxy is installed and a path to its binary is correct.'
+            }
+            raise core_exceptions.InternalServerErrorException(detail=data)
+
+        deploy_output = parse_haproxy_configtest_output(deploy)
+        return Response({'return code': 0, 'detail': deploy_output})
