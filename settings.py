@@ -17,6 +17,12 @@ HAPROXY_BLACKLISTED_OUTPUT = [
     'Configuration file is valid'
 ]
 
+# Path to bash is needed for graceful reloading, when left blank, restart will be performed on haproxy instead.
+BASH_PATH = '/bin/bash'
+
+# Path to file, where pids of processes will be stored during reload
+HAPROXY_PID_FILE_PATH = '/var/run/haproxy-procs.pid'
+
 ## Commands used to validate HaProxy configuration
 # Specifying this commands introduces a SECURITY HAZARD. Commands will be executed as they are without further control
 # and their output will be harvested for later processing. Use carefully or delete/comment these variables. In the
@@ -27,3 +33,12 @@ HAPROXY_EXECUTABLE = 'haproxy'
 
 # Default: haproxy -f PATH_TO_CONFIG -c
 HAPROXY_VALIDATION_CMD = '{0} -f {1} -c'.format((HAPROXY_EXECUTABLE or 'haproxy'), HAPROXY_CONFIG_DEV_PATH)
+
+# Default: /bin/bash -c haproxy -f PATH_TO_CONFIG -f /var/run/haproxy.pid -sf $(</var/run/haproxy.pid)
+# This command will be performed only if bash is present on a system
+HAPROXY_RELOAD_CMD = '{0} -f {1} -p {2} -sf $(<{2})'.format(
+    (HAPROXY_EXECUTABLE or 'haproxy'), HAPROXY_CONFIG_PATH, HAPROXY_PID_FILE_PATH
+)
+
+# Default: /etc/init.d/haproxy
+HAPROXY_RESTART_CMD = '/etc/init.d/haproxy restart'

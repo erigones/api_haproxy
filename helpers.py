@@ -14,6 +14,9 @@ def parse_haproxy_configtest_output(output):
     parsed_output = []
     previous_line = ''
 
+    if not output:
+        return []
+
     for line in configtest_output:
         if line not in blacklisted_lines:
             if output_sections.match(line):
