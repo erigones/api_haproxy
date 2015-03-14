@@ -1,3 +1,4 @@
+from api_core.exceptions import InternalServerErrorException
 import settings
 import re
 
@@ -27,3 +28,8 @@ def parse_haproxy_configtest_output(output):
                 previous_line += line.replace('   |', '')
 
     return parsed_output
+
+
+def raise_500_error(return_code, error_message):
+    data = {'return code': return_code, 'error': error_message}
+    raise InternalServerErrorException(detail=data)

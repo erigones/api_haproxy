@@ -7,7 +7,7 @@ from api_core import exceptions as core_exceptions
 from django.db import IntegrityError
 from django.utils import timezone
 from operator import methodcaller
-from helpers import parse_haproxy_configtest_output
+from helpers import parse_haproxy_configtest_output, raise_500_error
 from os.path import isfile
 import shutil
 import subprocess
@@ -133,11 +133,7 @@ class HaProxyConfigGenerateView(APIView):
                     config += "\n"
                 f.write(config)
         except IOError as e:
-            data = {
-                'error': e.strerror,
-                'file': settings.HAPROXY_CONFIG_DEV_PATH
-            }
-            raise core_exceptions.InternalServerErrorException(detail=data)
+            raise_500_error(e.errno, e.strerror + settings.HAPROXY_CONFIG_DEV_PATH)
 
         return Response({'created': True}, status=HTTP_201_CREATED)
 
@@ -157,30 +153,24 @@ class HaProxyConfigValidationView(APIView):
         """
         haproxy_executable = getattr(settings, 'HAPROXY_EXECUTABLE', None) or 'haproxy'
         haproxy_validation_cmd = getattr(settings, 'HAPROXY_VALIDATION_CMD', None)
-        dev_conf = settings.HAPROXY_CONFIG_DEV_PATH
+        haproxy_dev_conf = settings.HAPROXY_CONFIG_DEV_PATH
 
         if not haproxy_validation_cmd:
-            haproxy_validation_cmd = '{0} -f {1} -c'.format(haproxy_executable, dev_conf)
+            haproxy_validation_cmd = '{0} -f {1} -c'.format(haproxy_executable, haproxy_dev_conf)
 
-        if not isfile(dev_conf):
-            raise core_exceptions.DoesNotExistException(detail='{} is not a file.'.format(dev_conf))
+        if not isfile(haproxy_dev_conf):
+            raise core_exceptions.DoesNotExistException(detail='{} is not a file.'.format(haproxy_dev_conf))
 
         try:
             validate = subprocess.check_output(haproxy_validation_cmd.split(), stderr=subprocess.STDOUT)
         # Exception is caught when an executed command returns a non zero code
         except subprocess.CalledProcessError as e:
-            data = {
-                'return code': e.returncode,
-                'detail': parse_haproxy_configtest_output(e.output)
-            }
-            raise core_exceptions.InternalServerErrorException(detail=data)
+            raise_500_error(e.returncode, parse_haproxy_configtest_output(e.output))
+
         # Exception is caught when no executable is found
         except OSError as e:
-            data = {
-                'return code': e.errno,
-                'detail': str(e.strerror) + '. Make sure HAProxy is installed and a path to its binary is correct.'
-            }
-            raise core_exceptions.InternalServerErrorException(detail=data)
+            err_message = str(e.strerror) + '. Make sure HAProxy is installed and a path to its binary is correct.'
+            raise_500_error(e.errno, err_message)
 
         validate_output = parse_haproxy_configtest_output(validate)
         return Response({'return code': 0, 'detail': validate_output})
@@ -232,17 +222,11 @@ class HaProxyConfigDeployView(APIView):
             shutil.copy(haproxy_dev_config, haproxy_prod_config)
             deploy = subprocess.check_output(haproxy_reload, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            data = {
-                'return code': e.returncode,
-                'detail': parse_haproxy_configtest_output(e.output)
-            }
-            raise core_exceptions.InternalServerErrorException(detail=data)
+            raise_500_error(e.returncode, parse_haproxy_configtest_output(e.output))
+
         except OSError as e:
-            data = {
-                'return code': e.errno,
-                'detail': str(e.strerror) + '. Make sure HAProxy is installed and a path to its binary is correct.'
-            }
-            raise core_exceptions.InternalServerErrorException(detail=data)
+            err_message = str(e.strerror) + '. Make sure HAProxy is installed and a path to its binary is correct.'
+            raise_500_error(e.errno, err_message)
 
         deploy_output = parse_haproxy_configtest_output(deploy)
         return Response({'return code': 0, 'detail': deploy_output})
