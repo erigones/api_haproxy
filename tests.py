@@ -1,6 +1,7 @@
 from django.conf import settings
 from rest_framework.test import APITestCase
 from rest_framework import status
+import json
 
 
 class HaProxyConfigBuildTest(APITestCase):
@@ -13,9 +14,9 @@ class HaProxyConfigBuildTest(APITestCase):
     non_existing_id = '1ab2cd3ef4gh/'
 
     def test_unnamed_section_create_ok(self):
-        local_data = self.data.copy()
-        response = self.client.post(self.base_url, local_data)
+        response = self.client.post(self.base_url, self.data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertRegexpMatches(response.data.get('checksum'), '[a-z0-9]{32}')
 
     def test_unnamed_section_create_fail(self):
         local_data = self.data.copy()
@@ -29,6 +30,7 @@ class HaProxyConfigBuildTest(APITestCase):
         local_data['section_name'] = 'nodes'
         response = self.client.post(self.base_url, local_data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertRegexpMatches(response.data.get('checksum'), '[a-z0-9]{32}')
 
     def test_named_section_create_fail(self):
         local_data = self.data.copy()
@@ -38,7 +40,7 @@ class HaProxyConfigBuildTest(APITestCase):
 
     def test_duplicate_section_create_fail(self):
         local_data = self.data.copy()
-        response = self.client.post(self.base_url, local_data)
+        self.client.post(self.base_url, local_data)
         response = self.client.post(self.base_url, local_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -47,10 +49,11 @@ class HaProxyConfigBuildTest(APITestCase):
         response = self.client.post(self.base_url, local_data)
         response = self.client.put(self.base_url + response.data.get('checksum') + '/', local_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertRegexpMatches(response.data.get('checksum'), '[a-z0-9]{32}')
 
     def test_non_existing_section_update_fail(self):
         local_data = self.data.copy()
-        response = self.client.post(self.base_url, local_data)
+        self.client.post(self.base_url, local_data)
         response = self.client.put(self.base_url + self.non_existing_id, local_data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -59,14 +62,26 @@ class HaProxyConfigBuildTest(APITestCase):
         section_id = response.data.get('checksum') + '/'
         response = self.client.get(self.base_url + section_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertListEqual(response.data.keys(), ['checksum', 'section', 'section_name', 'meta', 'configuration'])
+        self.assertRegexpMatches(response.data.get('checksum'), '[a-z0-9]{32}')
+        for key in self.data.keys():
+            if key == 'configuration':
+                self.assertDictEqual(dict(response.data.get(key)), dict(json.loads(self.data.get(key))))
+                continue
+            self.assertEqual(response.data.get(key), self.data.get(key))
 
     def test_get_specific_section_not_found(self):
         response = self.client.get(self.base_url + self.non_existing_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_all_sections_ok(self):
+        self.client.post(self.base_url, self.data)
+        local_data = self.data.copy()
+        local_data['section'] = 'defaults'
+        self.client.post(self.base_url, local_data)
         response = self.client.get(self.base_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
 
 
 class HaProxyConfigTest(APITestCase):
