@@ -7,7 +7,7 @@ Introduction
 This Django application covers build, generation, validation and deployment processes of a HAProxy configuration file
 lifecycle with common API calls. Project is developed as part of a Bachelor's thesis about NFV. Application uses
 exceptions from the [api\_core](https://github.com/erigones/api_core ) submodule. Authentication introduced in api\_core 
-may be used as well. See section [<b>Deploying with authentication</b>](https://github.com/erigones/api_haproxy#deploying) 
+may be used as well. See section [<b>Deploying with authentication</b>](https://github.com/erigones/api_haproxy#deploying-with-authentication) 
 below for more details.
 
 You may want to use whole Django project implementing this application instead. You can find it at 
@@ -37,7 +37,7 @@ Running API
 ------
 
 For testing and development purposes, running API with web server shipped in Django is fine enough. For production 
-though, you may want to consider some production ready web server like uwsgi or gunicorn. Deploying Django application 
+though, you may want to consider a production-ready web server like uwsgi or gunicorn. Deploying Django application 
 within one of these web servers is a matter of pointing to a wsgi.py file, which should be contained in your project's 
 directory. In order how to configure these servers you can start reading following Django documentation pages:
 
@@ -56,10 +56,15 @@ purposes python-httpie package can help a bit. Install it with:
 Then you can interact with API:
 
 `http POST http://${IP}:${PORT}/v1/haproxy/section/ section='global' configuration='{"daemon": "", "user": "www-data", "group": "www-data"}'`
+
 `http GET http://${IP}:${PORT}/v1/haproxy/section/`
+
 `http GET http://${IP}:${PORT}/v1/haproxy/configuration/generate/`
+
 `http POST http://${IP}:${PORT}/v1/haproxy/configuration/generate/`
+
 `http GET http://${IP}:${PORT}/v1/haproxy/configuration/validate/`
+
 `http POST http://${IP}:${PORT}/v1/haproxy/configuration/deploy/`
 
 Deploying with authentication
@@ -69,18 +74,18 @@ Currently, authentication from api\_core application is not integrated into api\
 use api\_haproxy in a private network behind NAT and firewalls, there is probably no need to have authentication 
 enabled at all. On the other hand, if you plan to do so, here are steps to make it work:
 
-- submodule api\_core into your Django project
+1. submodule api\_core into your Django project
 
 `git submodule add *repository-link*`
 
-- import permissions and authentication modules by adding following lines to the top of views.py file
+2. import permissions and authentication modules by adding following lines to the top of views.py file
 
 ```python
     from rest_framework.permissions import IsAuthenticated
     from api_core.authentication import SimpleTokenAuthentication
 ```
 
-- add permissions and authentication classes as attributes to each APIView you want to authenticate. For example:
+3. add permissions and authentication classes as attributes to each APIView you want to authenticate. For example:
 
 ```python
     class TestAuthView(APIView):
@@ -91,15 +96,17 @@ enabled at all. On the other hand, if you plan to do so, here are steps to make 
 From now on you can make HTTP requests with an authentication.token field in them, assuming you have created first token 
 by hand.
 
-- generation of master token is accessible after running `python manage.py migrate` and submoduling an api\_core app.
+4. generation of master token is accessible after running `python manage.py migrate` and submoduling an api\_core app.
 
 `python manage.py shell`
 
+then enter below listed commands in sequence
+
 ```python
-    from api_core.models import SimpleTokenAuthModel
-    token = SimpleTokenAuthModel()
-    token.save()
-    print token.token_uuid
+    > from api_core.models import SimpleTokenAuthModel
+    > token = SimpleTokenAuthModel()
+    > token.save()
+    > print token.token_uuid
 ```
 
 Todo
