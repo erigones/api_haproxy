@@ -5,27 +5,28 @@ import base64
 
 class Base64JsonField(models.TextField):
     """
-    Base64JsonField is custom field purposed to store json data in base64 format to text column
-    in relational databases.
+    Base64JsonField is a custom field intended to store a JSON data in a Base64 format to a text column in relational
+    databases. Stored data are first serialized into a JSON string representation and then encoded into a Base64 format.
+    When retrieving this data, same logic is applied in a reverse order.
     """
     __metaclass__ = models.SubfieldBase
 
     def get_prep_value(self, value):
         """
-        Encodes json data into base64 when preparing data for write to a database.
-        :param value: data to be serialized first to json, then to base64
-        :return: base64 encoded data
+        Encodes JSON data into a Base64 format, when preparing them to be written to a database.
+        :param value: data to be serialized and stored
+        :return: Base64 string
         """
         if value is not None:
             return 'base64:' + base64.encodestring(json.dumps(value))
 
     def to_python(self, value):
         """
-        Decodes base64 json serialized data.
-        Method is called when data are gathered from the database as well as when the class is instantiated
-        thus there is need to prepend a string with a prefix and check it to prevent decoding common string.
+        Decodes Base64 serialized JSON data. This method is called when data are gathered from a database as well as
+        when this class is instantiated, introducing need to differ a passed in value due to later processing.
+        Distinction is accomplished by appending of a 'base64:' prefix before encoded data.
         :param value: serialized data from database
-        :return: json data
+        :return: JSON data
         """
         if value is not None and isinstance(value, basestring):
             value = str(value)
