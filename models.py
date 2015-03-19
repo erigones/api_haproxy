@@ -6,7 +6,11 @@ from django.utils import timezone
 
 class HaProxyConfigModel(models.Model):
     """
-    Model storing serialized configuration of HaProxy divided per section in Base64 format. E.g. frontend, backend.
+    Model is intended to store a serialized configuration of a HAProxy loadbalancer software. Stored data are divided
+    per section, e.g. frontend, backend, defaults and so on. These data provide two types of information. First are
+    columns with metadata like a checksum (used as id as well as unique identifier), create time and a meta column,
+    which could be customized to store information like, who posted a specific configuration block or so.
+    Second, there are columns containing configuration, these columns are section, section name and configuration.
     """
     db_table = 'haproxy_config'
     checksum = models.CharField(max_length=32, unique=True)
@@ -18,8 +22,8 @@ class HaProxyConfigModel(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Enhances default models.Model.save method to store a configuration checksum for later processing
-        like writes or check of integrity during saves.
+        Method enhances a default models.Model.save method to store a configuration checksum for later processing
+        like writes or check of an integrity during saves to a database.
         """
         checksum = md5()
         checksum.update(self.section + (self.section_name or '') + self.configuration)
@@ -29,8 +33,9 @@ class HaProxyConfigModel(models.Model):
 
     def generate_meta(self):
         """
-        Method generates metadata for every submitted entry to database.
-        :return: list of metadata for entry
+        Method generates metadata for every submitted entry to a database. This is place, where additional information
+        should be defined if needed.
+        :return: list of metadata for an entry
         """
         meta = {
             'create_time': str(timezone.now()),
@@ -39,12 +44,14 @@ class HaProxyConfigModel(models.Model):
 
     def get_section_weight(self):
         """
-        Method returns weights of section for later sorting used when configuration file is being generated.
-        :return: weight of specific section
+        Method returns weights of sections for later processing. This method is handy during generation or preview of a
+        configuration file. Sections are numbered to appear in a following order:
+        global, defaults, defaults(named), frontend, backend, listen
+        :return: weight of a specific section
         """
         weights = {'global': 1, 'defaults': 3, 'frontend': 5, 'backend': 7, 'listen': 9}
         if self.section in weights:
-            weight = weights.get(self.section, 0)
+            weight = weights.get(str(self.section), 0)
             if self.section_name:
                 return weight + 1
             return weight
