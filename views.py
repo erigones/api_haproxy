@@ -17,15 +17,19 @@ import json
 
 class HaProxyConfigBuildView(APIView):
     """
-    API view handling build process of sections in HaProxy configuration.
+    An API view handling build process of a HAProxy configuration file. Specific configuration directives are posted in
+    sections, which are then formatted and stored in a database. Posted sections are versioned with a md5 checksum and
+    create time, thus most currently posted section is always used in a final configuration. In a need to use a specific
+    older section, method implementing PUT provides similar functionality to an unix touch command, moving touched
+    section to top of a selection process.
     """
 
     def get(self, request, checksum=None):
         """
-        Method responding to GET request lists specific configuration section stored in a database whenever
-        unique checksum string is provided. Otherwise list of all configuration sections is returned in response.
+        Method, responding to a GET request, lists a specific configuration section stored in a database whenever
+        an unique checksum string is provided. Otherwise list of all configuration sections is returned in a response.
         :param request: request data
-        :param checksum: unique identifier of configuration sections
+        :param checksum: an unique identifier of a configuration section
         :return: rest_framework.response.Response containing serialized data
         """
         if checksum is not None:
@@ -42,8 +46,8 @@ class HaProxyConfigBuildView(APIView):
 
     def post(self, request):
         """
-        Method responding to POST request creates new configuration section, validates input and
-        stores it in a database.
+        Method is responding to a POST request, which in turn creates a new configuration section, after successful pass
+        of a input validation. Processed section is stored in a database if it contains correct information.
         :param request: request data
         :return: rest_framework.response.Response containing serialized data
         """
@@ -68,8 +72,9 @@ class HaProxyConfigBuildView(APIView):
 
     def put(self, request, checksum=None):
         """
-        Method responding to PUT request modifies existing section, updates its create_time field and sets
-        modify_time to meta data of section. Updated method will be used in configuration generation.
+        Method, responding to a PUT request, modifies existing section, updates its create_time field and sets
+        a modify_time key to meta field of a section. Updated section will be selected into configuration file
+        generation.
         :param request: request data
         :return: rest_framework.response.Response containing serialized data
         """
@@ -89,13 +94,18 @@ class HaProxyConfigBuildView(APIView):
 
 class HaProxyConfigGenerateView(APIView):
     """
-    API view handling generation process of HaProxy configuration file.
+    An API view handling generation process of a HAProxy configuration file. The generation process walks through all
+    configuration sections stored in a database. Only newest one of each unique section type is retrieved from a
+    database and passed to a next step. Uniqueness of a section type is guaranteed by a combination of a section and
+    section name. The next step constructs a sorted list containing these selected objects, which represent specific
+    configuration blocks, and based on an used request method either sends them in response or write them to a file.
+    Sections will be sorted as follows: global, defaults, defaults(named), frontend, backend, listen
     """
 
     def get(self, request):
         """
-        Method responding to GET request fetches submitted section which will be generated to configuration file, thus
-        providing configuration preview.
+        Method, responding to a GET request, fetches most currently posted sections of every type. Fetched sections are
+        send serialized in a response to a client, thus providing preview of a final configuration.
         :param request: request data
         :return: rest_framework.response.Response containing serialized data
         """
@@ -111,8 +121,10 @@ class HaProxyConfigGenerateView(APIView):
 
     def post(self, request):
         """
-        Method responding to POST request creates new configuration, which is stored in file specified by
-        HAPROXY_CONFIG_PATH defined in settings file specific to api_haproxy.
+        Method, responding to a POST request, creates a new configuration, which is stored in a file specified by
+        the HAPROXY_CONFIG_PATH variable defined in a settings file specific to a api_haproxy application. Objects from
+        a database are retrieved with a same logic as in the HaProxyConfigGenerateView.get method and formatted into a
+        representation valid for a HAProxy configuration.
         :param request: request data
         :return: rest_framework.response.Response containing serialized data
         """
@@ -140,14 +152,18 @@ class HaProxyConfigGenerateView(APIView):
 
 class HaProxyConfigValidationView(APIView):
     """
-    API view interacting with haproxy cli command to validate generated haproxy configuration file.
+    An API view interacting with 'haproxy' command utility to validate a previously generated HAProxy configuration
+    file. Validation process tries to load path to a file and command to be executed from a settings file. In the case,
+    when there are no such settings available, the process uses hardcoded defaults. At the end of a process, an output
+    from a validation is parsed and sent to a client.
     """
 
     def get(self, request):
         """
-        Method calling haproxy command to validate a newly generated configuration in a location provided by a
-        HAPROXY_CONFIG_DEV_PATH variable. Validation is performed using command specified in a HAPROXY_VALIDATION_CMD
-        variable. All these variables could be specified in settings.py file local to api_haproxy project.
+        Method is calling 'haproxy' command to validate newly generated configuration in a location provided by the
+        HAPROXY_CONFIG_DEV_PATH variable. This method expects previous run of a generation method. Validation is
+        performed by a command specified in the HAPROXY_VALIDATION_CMD variable, which output is then parsed and sent to
+        a client requesting validation check.
         :param request: request data
         :return: rest_framework.response.Response containing serialized data
         """
@@ -161,6 +177,7 @@ class HaProxyConfigValidationView(APIView):
         if not isfile(haproxy_dev_conf):
             raise core_exceptions.DoesNotExistException(detail='{} is not a file.'.format(haproxy_dev_conf))
 
+        validate = 'There has been no output so far.'
         try:
             validate = subprocess.check_output(haproxy_validation_cmd.split(), stderr=subprocess.STDOUT)
         # Exception is caught when an executed command returns a non zero code
@@ -178,16 +195,20 @@ class HaProxyConfigValidationView(APIView):
 
 class HaProxyConfigDeployView(APIView):
     """
-    API view interacting with haproxy cli command to deploy generated haproxy configuration file and reload haproxy.
+    An API view interacting with 'haproxy' command to deploy new configuration and reload a HAProxy daemon. This
+    process tries to load commands as well as paths to configuration files from a settings.py file. In the case, when
+    there are no such settings available, the process uses hardcoded defaults. At the end, production configuration file
+    is backed up and replaced with a development configuration file, followed by a restart or reload of a daemon.
     """
 
     def post(self, request):
         """
-        Method replacing production configuration specified in HAPROXY_CONFIG_PATH with newly generated configuration
-        stored in location, which is specified in HAPROXY_CONFIG_DEV_PATH. Replaced configuration file is renamed to
-        same name, but ends with .bak. After configuration files are moved, method calls haproxy command and attempts to
-        reload configuration, when bash is present, otherwise restart will be performed. Use this view without previous
-        call of validation view at your own risk !
+        Method is calling 'haproxy' command to deploy specified configuration file and reload a HAProxy daemon.
+        Production file listed in the HAPROXY_CONFIG_PATH variable is replaced with a file listed in the
+        HAPROXY_CONFIG_DEV_PATH variable, the one generated with a HaProxyConfigGenerateView. Replaced production file
+        is renamed to same name, but ends with a .bak extension. After files are switched, method calls 'haproxy'
+        command and attempts to reload configuration, expecting that bash is present, otherwise restart will be
+        performed. It is not recommended to run this method before previous validation run.
         :param request: request data
         :return: rest_framework.response.Response containing serialized data
         """
@@ -217,6 +238,7 @@ class HaProxyConfigDeployView(APIView):
         if not isfile(haproxy_prod_config):
             raise core_exceptions.DoesNotExistException(detail='{} is not a file.'.format(haproxy_prod_config))
 
+        deploy = 'There has been no output so far.'
         try:
             shutil.copy(haproxy_prod_config, haproxy_prod_config + '.bak')
             shutil.copy(haproxy_dev_config, haproxy_prod_config)
