@@ -91,6 +91,21 @@ class HaProxyConfigBuildView(APIView):
 
         return Response({'checksum': config.checksum})
 
+    def delete(self, request, checksum=None):
+        """
+        Method, responding to a DELETE request, deletes existing section.
+        :param request: request data
+        :return: rest_framework.response.Response containing serialized data
+        """
+        if not checksum:
+            raise core_exceptions.InvalidRequestException()
+
+        try:
+            HaProxyConfigModel.objects.filter(checksum=checksum).delete()
+        except HaProxyConfigModel.DoesNotExist:
+            raise core_exceptions.DoesNotExistException()
+
+        return Response({'deleted': True})
 
 class HaProxyConfigGenerateView(APIView):
     """
