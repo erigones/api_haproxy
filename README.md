@@ -105,8 +105,8 @@ then, enter below listed commands in a sequence
 Todo
 ------
 
-- Create documentation with a Python sphinx module
 - Refactor views.py and settings.py to implement an option 'enable authentication' from api\_core submodule
 - Make way to revert to a previous configuration file in HaProxyConfigDeployView, when subprocess.CalledProcessError 
 exception is raised
+- When raising DuplicateEntryException, pass in id of a original configuration block
 - Always refactor to make code better
