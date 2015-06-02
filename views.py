@@ -257,7 +257,7 @@ class HaProxyConfigDeployView(APIView):
         try:
             shutil.copy(haproxy_prod_config, haproxy_prod_config + '.bak')
             shutil.copy(haproxy_dev_config, haproxy_prod_config)
-            deploy = subprocess.check_output(haproxy_reload, stderr=subprocess.STDOUT)
+            deploy = subprocess.Popen(haproxy_reload, stdin=None, stdout=None, stderr=None)
         except subprocess.CalledProcessError as e:
             raise_500_error(e.returncode, parse_haproxy_configtest_output(e.output))
 
@@ -265,5 +265,4 @@ class HaProxyConfigDeployView(APIView):
             err_message = str(e.strerror) + '. Make sure HAProxy is installed and a path to its binary is correct.'
             raise_500_error(e.errno, err_message)
 
-        deploy_output = parse_haproxy_configtest_output(deploy)
-        return Response({'return code': 0, 'detail': deploy_output})
+        return Response({'return code': 0})
